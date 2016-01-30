@@ -1,0 +1,73 @@
+---
+title: "Practical Machine Learning Project: Exercise Type Prediction"
+author: "Alex Gascoigne"
+email: "agascoig@yahoo.com"
+date: "January 30, 2016"
+output: html_document
+---
+
+## Summary
+
+This project involves exercise type prediction using accelerometer data on belt, forearm, arm,
+and dumbell of 6 participants.  They performed barebell lifts correctly and incorrectly in
+5 different ways.  The goal of the project is to predict the manner in which they did the
+exercise, the "classe" variable.
+
+The original source of the data and more information is available at:
+
+http://groupware.les.inf.puc-rio.br/har
+
+## Data Analysis
+
+We load the data into R to train a random forest predictor, after subsetting the relevant
+acceleration fields.  The training data is partitioned into **training** and **testing** sets. Then
+K-fold (K=5) cross-validation is used with 3 repetitions.  This splits the data into five random partitions: four
+parts are used for training, and one part validation.
+
+No preprocessing of the data (centering, scaling) was done.
+
+```{r}
+library(caret)
+set.seed(12345)
+raw_train_data<-read.csv('training.csv')
+raw_test_data<-read.csv('testing.csv')
+
+vars<-c(
+"total_accel_belt",     "accel_belt_x",         "accel_belt_y",         "accel_belt_z",        
+"total_accel_arm",      "accel_arm_x",          "accel_arm_y",          "accel_arm_z",        
+"total_accel_dumbbell", "accel_dumbbell_x",     "accel_dumbbell_y",     "accel_dumbbell_z",   
+"total_accel_forearm",  "accel_forearm_x",      "accel_forearm_y",      "accel_forearm_z"
+)
+
+train_data<-subset(raw_train_data,select=c("classe",vars))
+test_data<-subset(raw_test_data,select=vars)
+
+inTrain = createDataPartition(train_data$classe, p = 0.7)[[1]]
+
+training = train_data[ inTrain,]
+testing = train_data[-inTrain,]
+
+ctrl <- trainControl(method="repeatedcv",repeats=3,number=5)
+
+print(date())
+fit1<-train(classe~.,method="rf",data=training, trControl=ctrl,allowParallel=TRUE)
+print(date())
+fit1
+
+pred<-predict(fit1,testing)
+accuracy<-sum(pred==testing$classe)/dim(testing)[[1]]
+print(accuracy)
+```
+
+The accuracy achieved by this predictor was `r accuracy` using 4,904 data points withheld from the training.
+
+Finally, we predict the values for the original test set of 20 items:
+
+```{r}
+test_pred<-predict(fit1,test_data)
+print(test_pred)
+```
+
+## Conclusion
+
+Relatively high accuracy (94%) was achieved using a random forest predictor.
